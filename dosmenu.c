@@ -4,6 +4,7 @@
 #include <string.h>
 #include <dos.h>
 #include <dir.h>
+#include <ctype.h>
 
 #define true 1
 #define false 0
@@ -155,6 +156,16 @@ char *getSetting(struct section *sections, char *section, char*name) {
         return getSettingInSection(sections,name);
 }
 
+int isCommentLine(char *line) {
+	for (; *line != 0; line++) {
+		if (*line == ';')
+			return true;
+		if (!isspace(*line))
+			return false;
+	}
+	return false;
+}
+
 struct section *loadConfig(void) {
         FILE *cfg = NULL;
         struct section *sections = newSection("");
@@ -169,7 +180,11 @@ struct section *loadConfig(void) {
                         free(line);
                         break;
                 }
-                //printf("LINE:%s\n",line);
+		// Skip comment lines
+		if (isCommentLine(line)) {
+			free(line);
+			continue;
+		}
                 if (strchr(line,'[') == line && strchr(line,']') != NULL) {
                         char *sect = line + 1;
                         char *endSect = strchr(line,']');
