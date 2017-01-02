@@ -71,6 +71,26 @@ void addSetting(struct section *section, char* name, char* value) {
         cur->next = newSetting(name,value);
 }
 
+enum COLORS colorByName(char *name) {
+	if (strcmp("BLACK",name) == 0) return BLACK;
+	if (strcmp("BLUE",name) == 0) return BLUE;
+	if (strcmp("GREEN",name) == 0) return GREEN;
+	if (strcmp("CYAN",name) == 0) return CYAN;
+	if (strcmp("RED",name) == 0) return RED;
+	if (strcmp("MAGENTA",name) == 0) return MAGENTA;
+	if (strcmp("BROWN",name) == 0) return BROWN;
+	if (strcmp("LIGHTGRAY",name) == 0) return LIGHTGRAY;
+	if (strcmp("DARKGRAY",name) == 0) return DARKGRAY;
+	if (strcmp("LIGHTBLUE",name) == 0) return LIGHTBLUE;
+	if (strcmp("LIGHTGREEN",name) == 0) return LIGHTGREEN;
+	if (strcmp("LIGHTCYAN",name) == 0) return LIGHTCYAN;
+	if (strcmp("LIGHTRED",name) == 0) return LIGHTRED;
+	if (strcmp("LIGHTMAGENTA",name) == 0) return LIGHTMAGENTA;
+	if (strcmp("YELLOW",name) == 0) return YELLOW;
+	if (strcmp("WHITE",name) == 0) return WHITE;
+	return -1;
+}
+
 #define LINE_MAX 256
 
 char *readLine(FILE *fp) {
@@ -193,13 +213,13 @@ int readScanCode() {
 #define SPACE 57
 #define ESC 1
 
-void drawScreen(struct section *sections, char *title, int selected) {
+void drawScreen(struct section *sections, char *title, int selected, int borderColor) {
         int i;
         char attrByte;
         clrscr();
         gotoxy(1,1);
         textbackground(BLACK);
-        textcolor(LIGHTGREEN);
+        textcolor(borderColor);
         gotoxy(1,1);
         putch(201);
         for (i = 1; i < 79; i++)
@@ -262,8 +282,8 @@ int countSections(struct section *sections) {
 
 int main(int argc, char**argv) {
         struct section *sections;
-        char *title, *saveCWD;
-        int scanCode, inputLoop,selected, actionEnter, sectionCount;
+        char *title, *saveCWD, *borderColorName;
+        int scanCode, inputLoop,selected, actionEnter, sectionCount, borderColor;
 
         saveCWD = xmalloc(256);
         getcwd(saveCWD, 256);
@@ -277,11 +297,19 @@ int main(int argc, char**argv) {
         if (title == NULL)
                 abortMsg("Setting 'title' not set");
 
+	borderColor = LIGHTGREEN;
+	borderColorName = getSetting(sections, "", "border");
+	if (borderColorName != NULL) {
+		borderColor = colorByName(borderColorName);
+		if (borderColor < 0)
+			abortMsg("Setting 'border' has invalid value");
+	}
+
         while (true) {
                 actionEnter = false;
                 selected = 1;
                 inputLoop = true;
-                drawScreen(sections, title, selected);
+                drawScreen(sections, title, selected, borderColor);
                 while (inputLoop) {
                         scanCode = readScanCode();
                         switch (scanCode) {
