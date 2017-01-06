@@ -295,6 +295,25 @@ int countSections(struct section *sections) {
         return i;
 }
 
+// Check if a key is pending.
+// Key is pending if head and tail pointers of keyboard buffer in
+// BIOS data area (BDA) are different.
+int keyPending() {
+	int head, tail;
+	disable();
+	head = peek(0x40,0x1A); // 40:1A = keybuf head pointer
+	tail = peek(0x40,0x1C); // 40:1C = keybuf tail pointer
+	enable();
+	return head != tail;
+}
+
+// Ignore all pending keys
+// This helps consume any stray keys after exiting
+void drainInput() {
+	while (keyPending())
+		readScanCode();
+}
+
 int main(int argc, char**argv) {
         struct section *sections;
         char *title, *saveCWD, *borderColorName;
@@ -366,6 +385,7 @@ int main(int argc, char**argv) {
                         chdir(saveCWD);
                         resetVideo();
                         _setcursortype(_NOCURSOR);
+			drainInput();
                 }
         }
 }
