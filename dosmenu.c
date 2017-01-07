@@ -228,41 +228,47 @@ int readScanCode() {
 #define SPACE 57
 #define ESC 1
 
-void drawScreen(struct section *sections, char *title, int selected, int borderColor) {
+void drawScreen(struct section *sections, char *title, int selected, int borderColor, int horizGap) {
         int i;
         char attrByte;
         clrscr();
-        gotoxy(1,1);
+        gotoxy(1 + horizGap,1);
         textbackground(BLACK);
         textcolor(borderColor);
-        gotoxy(1,1);
+        gotoxy(1 + horizGap,1);
         putch(201);
-        for (i = 1; i < 79; i++)
+        for (i = 1 + horizGap; i < 79 - horizGap; i++)
                 putch(205);
         putch(187);
-        gotoxy(1,2);
+        gotoxy(1 + horizGap,2);
         putch(186);
-        gotoxy(80,2);
+        gotoxy(80 - horizGap,2);
         putch(186);
-        gotoxy(1,3);
+        gotoxy(1 + horizGap,3);
         putch(204);
-        for (i = 1; i < 79; i++)
+        for (i = 1 + horizGap; i < 79 - horizGap; i++)
                 putch(205);
         putch(185);
         for (i = 4; i < 25; i++) {
-                gotoxy(1,i);
+                gotoxy(1+horizGap,i);
                 putch(186);
-                gotoxy(80,i);
+                gotoxy(80-horizGap,i);
                 putch(186);
         }
-        gotoxy(1,25);
+        gotoxy(1+horizGap,25);
         putch(200);
-        for (i = 1; i < 79; i++)
+        for (i = 1+horizGap; i < 79-horizGap; i++)
                 putch(205);
 
-        attrByte = peekb(0xB800, 1);
-        pokeb(0xB800, ((25*80)-1)*2, 188);
-        pokeb(0xB800, (((25*80)-1)*2)+1, attrByte);
+	if (horizGap == 0) {
+		attrByte = peekb(0xB800, 1);
+		pokeb(0xB800, ((25*80)-1)*2, 188);
+		pokeb(0xB800, (((25*80)-1)*2)+1, attrByte);
+	}
+	else {
+		gotoxy(80-horizGap,25);
+		putch(188);
+	}
 
         textcolor(YELLOW);
         centerText(2, title);
@@ -316,8 +322,9 @@ void drainInput() {
 
 int main(int argc, char**argv) {
         struct section *sections;
-        char *title, *saveCWD, *borderColorName;
+        char *title, *saveCWD, *borderColorName, *strHBorder;
         int scanCode, inputLoop,selected, actionEnter, sectionCount, borderColor;
+	int horizGap=0;
 
         saveCWD = xmalloc(256);
         getcwd(saveCWD, 256);
@@ -331,6 +338,12 @@ int main(int argc, char**argv) {
         if (title == NULL)
                 abortMsg("Setting 'title' not set");
 
+	strHBorder = getSetting(sections, "", "horizgap");
+	if (strHBorder != NULL)
+		horizGap = atoi(strHBorder);
+	if (horizGap < 0)
+		abortMsg("Setting 'horizgap' has invalid value");
+
 	borderColor = LIGHTGREEN;
 	borderColorName = getSetting(sections, "", "border");
 	if (borderColorName != NULL) {
@@ -343,7 +356,7 @@ int main(int argc, char**argv) {
                 actionEnter = false;
                 selected = 1;
                 inputLoop = true;
-                drawScreen(sections, title, selected, borderColor);
+                drawScreen(sections, title, selected, borderColor, horizGap);
                 while (inputLoop) {
                         scanCode = readScanCode();
                         switch (scanCode) {
