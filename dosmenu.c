@@ -9,6 +9,8 @@
 #define true 1
 #define false 0
 
+#define LAUNCHER_VECTOR 0x88
+
 void abortMsg(char *msg);
 
 void * xmalloc(size_t size) {
@@ -16,6 +18,55 @@ void * xmalloc(size_t size) {
         if (r == NULL)
                 abortMsg("Memory allocation failed");
         return r;
+}
+
+char * xstrdup(char *str) {
+	char *copy = xmalloc(strlen(str)+1);
+	strcpy(copy,str);
+	return copy;
+}
+
+int fileExistenceCheck(char *fname) {
+	FILE *fh = fopen(fname,"r");
+	if (fh == NULL)
+		return false;
+	fclose(fh);
+	return true;
+}
+
+int checkLauncherInstalled() {
+	return getvect(LAUNCHER_VECTOR) != 0;
+}
+
+int callLauncher(char *exec, char *args, int pause) {
+	union REGS in;
+	memset(&in,0,sizeof(union REGS));
+	in.x.ax = 0x1369;
+	in.x.bx = (int)exec;
+	in.x.cx = pause;
+	in.x.si = (int)args;
+	return int86(LAUNCHER_VECTOR, &in, &in);
+}
+
+// Split cmd into command line and argument
+void launcherSystem(char *line, int pause) {
+	char *cmd, *arg;
+	int rc;
+
+	cmd = xstrdup(line);
+	while (isspace(*cmd))
+		cmd++;
+	arg = cmd;
+	while (!isspace(*arg) && *arg != 0)
+		arg++;
+	if (isspace(*arg)) {
+		*arg = 0;
+		arg++;
+	}
+	rc = callLauncher(cmd,arg,pause);
+	if (rc != 0)
+		abortMsg("Launcher invocation failed");
+	exit(0);
 }
 
 void resetVideo(void) {
@@ -46,17 +97,16 @@ struct section {
 
 struct section * newSection(char *name) {
         struct section * s = (struct section*) xmalloc(sizeof(struct section));
-        s->name = strdup(name);
+        s->name = xstrdup(name);
         s->settings = NULL;
         s->next = NULL;
         return s;
 }
 
-
 struct setting * newSetting(char *name, char* value) {
         struct setting * s = (struct setting*) xmalloc(sizeof(struct setting));
-        s->name = strdup(name);
-        s->value = strdup(value);
+        s->name = xstrdup(name);
+        s->value = xstrdup(value);
         s->next = NULL;
         return s;
 }
@@ -329,6 +379,16 @@ int main(int argc, char**argv) {
         saveCWD = xmalloc(256);
         getcwd(saveCWD, 256);
 
+	// The launcher is an assembly language program used to reduce
+	// memory consumption. If we find it run it instead of ourselves.
+	if (fileExistenceCheck("DOSMENU.COM") &&
+		!checkLauncherInstalled() &&
+		fileExistenceCheck("LAUNCHER.COM")) {
+			execl("LAUNCHER.COM","LAUNCHER.COM",NULL);
+			// If we get to here, launcher failed
+	}
+
+	drainInput();
         resetVideo();
         _setcursortype(_NOCURSOR);
         sections = loadConfig();
@@ -392,9 +452,20 @@ int main(int argc, char**argv) {
                         struct section * nth = getSectionByIndex(sections, selected);
                         char *dir = getSettingInSection(nth, "dir");
                         char *run = getSettingInSection(nth, "run");
+			char *pause = getSettingInSection(nth, "pause");
+
                         if (dir != NULL)
                                 chdir(dir);
-                        system(run);
+			if (checkLauncherInstalled())
+				launcherSystem(run, strcmp(pause,"1")==0);
+			else
+				system(run);
+			if (strcmp(pause,"1")==0) {
+				drainInput();
+				printf("Press any key to continue...");
+				readScanCode();
+				printf("\n");
+			}
                         chdir(saveCWD);
                         resetVideo();
                         _setcursortype(_NOCURSOR);
