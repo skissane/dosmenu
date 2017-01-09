@@ -26,6 +26,19 @@ char * xstrdup(char *str) {
 	return copy;
 }
 
+char * xstrcat(char *a, char *b) {
+	int na, nb;
+	char *r;
+
+	na = strlen(a);
+	nb = strlen(b);
+	r = xmalloc(na+nb+1);
+	r[0] = 0;
+	strcat(r, a);
+	strcat(r, b);
+	return r;
+}
+
 int fileExistenceCheck(char *fname) {
 	FILE *fh = fopen(fname,"r");
 	if (fh == NULL)
@@ -50,20 +63,23 @@ int callLauncher(char *exec, char *args, int pause) {
 
 // Split cmd into command line and argument
 void launcherSystem(char *line, int pause) {
-	char *cmd, *arg;
+	char *comspec, *arg;
 	int rc;
 
-	cmd = xstrdup(line);
-	while (isspace(*cmd))
-		cmd++;
-	arg = cmd;
-	while (!isspace(*arg) && *arg != 0)
-		arg++;
-	if (isspace(*arg)) {
-		*arg = 0;
-		arg++;
+	comspec = getenv("COMSPEC");
+	if (comspec == NULL || strlen(comspec) == 0)
+		abortMsg("COMSPEC not set");
+	if (!fileExistenceCheck(comspec))
+		abortMsg("Command interpreter (COMSPEC) not found");
+
+	arg = xstrcat("/C ",line);
+	if (strlen(arg) > 126) {
+		free(arg);
+		abortMsg("Command line too long");
 	}
-	rc = callLauncher(cmd,arg,pause);
+
+	rc = callLauncher(comspec,arg,pause);
+	free(arg);
 	if (rc != 0)
 		abortMsg("Launcher invocation failed");
 	exit(0);

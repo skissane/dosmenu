@@ -13,6 +13,11 @@ LAUNCHVEC	equ	0x88
 ;; PROCEDURE _main
 ;;   Main procedure.
 _main:
+	; Switch stacks
+	mov ax, cs
+	mov ss, ax
+	mov sp, topOfStack
+
 	; Free memory we don't need, this makes sure there is enough
 	; free memory to run the programs we will launch
 	call _freeUnusedMemory
@@ -536,6 +541,19 @@ mErrorChgDir:	db "could not restore original directory",13,10,'$'
 
 ;;
 ;; END ERROR MESSAGE AREA
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; STACK AREA
+;;   This data area is reserved for the stack.
+;;
+STACKSIZE	equ 256		; Hopefully this is enough
+stackArea:	times STACKSIZE db 0
+topOfStack:
+
+;;
+;; END STACK AREA
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 _endOfCode:
